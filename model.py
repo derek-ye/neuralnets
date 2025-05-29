@@ -40,9 +40,9 @@ class SimpleModel(nn.Module):
 
       # define layers
       self.layer1 = nn.Linear(11, 128)
-      self.layer2 = nn.Linear(128, 64)
-      self.layer3 = nn.Linear(64, 32)
-      self.layer4 = nn.Linear(32, 1)
+      self.layer2 = nn.Linear(128, 128)
+      self.layer3 = nn.Linear(128, 64)
+      self.layer4 = nn.Linear(64, 1)
       self.activation_func = nn.ReLU()
       self.dropout = nn.Dropout(0.2)
 
@@ -58,7 +58,6 @@ class SimpleModel(nn.Module):
       X = self.dropout(X)
       X = self.layer3(X)
       X = self.activation_func(X)
-      X = self.dropout(X)
       X = self.layer4(X)
       return X
 
@@ -81,16 +80,23 @@ def train_1_step(model, X, y, optim):
 
 # Training loop ------------------------------------------------------------
 model = SimpleModel()
-optim = torch.optim.Adam(model.parameters(), lr=0.001)
+optim = torch.optim.Adam(model.parameters(), lr=0.0001)
 
 dataset = TensorDataset(X_train, y_train)  # Pairs up X and y
 dataloader = DataLoader(dataset, batch_size=32, shuffle=True)  # Splits into batches of 16
 
-for epoch in range(100):  # 100 full passes through data
+for epoch in range(200):  # 100 full passes through data
     for batch_X, batch_y in dataloader:  # This loop runs ~156 times (5000/16)
         # batch_X is 16 examples, batch_y is 16 labels
         loss = train_1_step(model, batch_X, batch_y, optim)  # Process 64 examples
         # Update weights after each batch of 16
+    # Validation check every 10 epochs
+    if epoch % 10 == 0:
+        model.eval()
+        with torch.no_grad():
+            val_preds = model(X_test)
+            val_loss = loss_fn(val_preds, y_test)
+        print(f"Epoch {epoch}: Val Loss {val_loss:.4f}")
 
 # Testing -------------------------------------------------------------------
 model.eval()
