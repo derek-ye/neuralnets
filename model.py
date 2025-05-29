@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-
+from torch.utils.data import TensorDataset, DataLoader
 from ucimlrepo import fetch_ucirepo 
   
 # fetch dataset 
@@ -24,7 +24,8 @@ y_test = y[5000:]
 # print(wine_quality.metadata) 
   
 # variable information 
-print(wine_quality.variables) 
+# print(wine_quality.variables) 
+# print(X.shape)
 
 # Model ---------------------------------------------------------------------
 class SimpleModel(nn.Module):
@@ -32,8 +33,10 @@ class SimpleModel(nn.Module):
       super(SimpleModel, self).__init__()
 
       # define layers
-      self.layer1 = nn.Linear(11, 100, bias=False)
-      self.layer2 = nn.Linear(100, 1, bias=False)
+      self.layer1 = nn.Linear(11, 128)
+      self.layer2 = nn.Linear(128, 64)
+      self.layer3 = nn.Linear(64, 32)
+      self.layer4 = nn.Linear(32, 1)
       self.activation_func = nn.ReLU()
 
   def forward(self, X):
@@ -43,6 +46,10 @@ class SimpleModel(nn.Module):
       X = self.layer1(X)
       X = self.activation_func(X)
       X = self.layer2(X)
+      X = self.activation_func(X)
+      X = self.layer3(X)
+      X = self.activation_func(X)
+      X = self.layer4(X)
 
       return X
 
@@ -67,11 +74,16 @@ def train_1_step(model, X, y, optim):
 num_steps = 10000
 
 model = SimpleModel()
-optim = torch.optim.Adam(model.parameters())
+optim = torch.optim.Adam(model.parameters(), lr=0.001)
 
-for step in range(num_steps):
-  loss = train_1_step(model, X_train, y_train, optim)
-  print(f"Loss for step {step} is {loss}") if step % 1000 == 0 else None
+dataset = TensorDataset(X_train, y_train)  # Pairs up X and y
+dataloader = DataLoader(dataset, batch_size=64, shuffle=True)  # Splits into batches of 64
+
+for epoch in range(100):  # 100 full passes through data
+    for batch_X, batch_y in dataloader:  # This loop runs ~156 times (5000/32)
+        # batch_X is 32 examples, batch_y is 32 labels
+        loss = train_1_step(model, batch_X, batch_y, optim)  # Process 64 examples
+        # Update weights after each batch of 32
 
 # Testing -------------------------------------------------------------------
 model.eval()
