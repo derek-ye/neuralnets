@@ -86,7 +86,7 @@ optim = torch.optim.Adam(model.parameters(), lr=0.001)
 dataset = TensorDataset(X_train, y_train)  # Pairs up X and y
 dataloader = DataLoader(dataset, batch_size=64, shuffle=True)  # Splits into batches of 64
 
-for epoch in range(1000):  # 1000 full passes through data
+for epoch in range(100):  # 100 full passes through data
     for batch_X, batch_y in dataloader:  # This loop runs ~156 times (5000/32)
         # batch_X is 32 examples, batch_y is 32 labels
         loss = train_1_step(model, batch_X, batch_y, optim)  # Process 64 examples
