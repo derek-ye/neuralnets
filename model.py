@@ -19,6 +19,12 @@ X_train = X[:5000]
 y_train = y[:5000]
 X_test = X[5000:]
 y_test = y[5000:]
+
+# normalize the data
+X_mean = X_train.mean(dim=0)
+X_std = X_train.std(dim=0)
+X_train = (X_train - X_mean) / X_std
+X_test = (X_test - X_mean) / X_std
   
 # metadata 
 # print(wine_quality.metadata) 
@@ -38,6 +44,7 @@ class SimpleModel(nn.Module):
       self.layer3 = nn.Linear(64, 32)
       self.layer4 = nn.Linear(32, 1)
       self.activation_func = nn.ReLU()
+      self.dropout = nn.Dropout(0.2)
 
   def forward(self, X):
       X = X.float()
@@ -45,12 +52,14 @@ class SimpleModel(nn.Module):
       # process
       X = self.layer1(X)
       X = self.activation_func(X)
+      X = self.dropout(X)
       X = self.layer2(X)
       X = self.activation_func(X)
+      X = self.dropout(X)
       X = self.layer3(X)
       X = self.activation_func(X)
+      X = self.dropout(X)
       X = self.layer4(X)
-
       return X
 
 def loss_fn(preds, truth):
@@ -71,15 +80,13 @@ def train_1_step(model, X, y, optim):
   return loss.item()
 
 # Training loop ------------------------------------------------------------
-num_steps = 10000
-
 model = SimpleModel()
 optim = torch.optim.Adam(model.parameters(), lr=0.001)
 
 dataset = TensorDataset(X_train, y_train)  # Pairs up X and y
 dataloader = DataLoader(dataset, batch_size=64, shuffle=True)  # Splits into batches of 64
 
-for epoch in range(100):  # 100 full passes through data
+for epoch in range(1000):  # 1000 full passes through data
     for batch_X, batch_y in dataloader:  # This loop runs ~156 times (5000/32)
         # batch_X is 32 examples, batch_y is 32 labels
         loss = train_1_step(model, batch_X, batch_y, optim)  # Process 64 examples
@@ -91,3 +98,32 @@ with torch.no_grad():
   test_preds = model(X_test)
   test_loss = loss_fn(test_preds, y_test)
   print(f"Test loss: {test_loss}")
+
+with torch.no_grad():
+    test_preds = model(X_test)
+    
+    # Convert back to wine quality scale
+    mae = torch.mean(torch.abs(test_preds.squeeze() - y_test.squeeze()))
+    print(f"Average prediction error: {mae:.2f} points")
+    
+    # How many predictions are close?
+    within_half_point = torch.sum(torch.abs(test_preds.squeeze() - y_test.squeeze()) < 0.5)
+    accuracy = within_half_point / len(y_test) * 100
+    print(f"Predictions within 0.5 points: {accuracy:.1f}%")
+
+# # take index 0 of X_test and y_test and print them
+# print("X_test[0]")
+# print(X_test[0])
+# print(y_test[0])
+
+# # print the prediction for the first example
+# print("Prediction for X_test[0]")
+# print(model(X_test[0]))
+
+# Baseline ------------------------------------------------------------------
+# So I'm learning from Claude that looking at the Basline MSE using the mean of the training data is a good way to see how good the model is.
+# Correct me if I'm wrong, but I'm getting a Baseline MSE (always predicting mean) of 0.6889896392822266
+# So I'm guessing that the model is doing better than the baseline, but not by much.
+mean_prediction = y_train.mean()
+baseline_mse = ((y_test - mean_prediction) ** 2).mean()
+print(f"Baseline MSE (always predicting mean): {baseline_mse}")
